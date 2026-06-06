@@ -47,28 +47,10 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [activeTab, setActiveTab] = useState("Home");
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleLoaded = () => {
-      setIsVideoLoaded(true);
-    };
-
-    if (video.readyState >= 3) {
-      setIsVideoLoaded(true);
-    } else {
-      video.addEventListener("canplaythrough", handleLoaded);
-      video.addEventListener("loadeddata", handleLoaded);
-    }
-
-    return () => {
-      video.removeEventListener("canplaythrough", handleLoaded);
-      video.removeEventListener("loadeddata", handleLoaded);
-    };
+    setIsVideoLoaded(true);
   }, []);
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -107,39 +89,40 @@ export default function Home() {
     { hour: "11:00 PM", val: 0.0, height: 0 },
   ];
 
-  // Background slow charge / gradual fill-up simulation
+  const simulationStartTimeRef = useRef<number>(Date.now());
+
+  // Synchronize battery charge and state with simulated loop time
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isFilling) {
-      // Slower, smooth charging animation: 0% -> 100% over 20 seconds (1% every 200ms)
-      interval = setInterval(() => {
-        setBatteryCharge((prev) => {
-          if (prev >= 100) {
-            setIsFilling(false);
-            return 100;
-          }
-          return prev + 1;
-        });
-      }, 200);
-    } else {
-      // Ambient slow charge: increase by 1% every 8 seconds if under 100%
-      interval = setInterval(() => {
-        setBatteryCharge((prev) => {
-          if (prev < 100) {
-            return prev + 1;
-          }
-          return prev;
-        });
-      }, 8000);
-    }
-    return () => clearInterval(interval);
-  }, [isFilling]);
+    let animFrameId: number;
+
+    const updateBattery = () => {
+      const elapsed = ((Date.now() - simulationStartTimeRef.current) / 1000) % 10; // 10 second loop
+
+      let charge = 0;
+      let filling = true;
+
+      if (elapsed < 4.0) {
+        // First 4 seconds: charge 0% -> 100%
+        charge = (elapsed / 4.0) * 100;
+        filling = true;
+      } else {
+        // Next 6 seconds: drain 100% -> 20%
+        const factor = (elapsed - 4.0) / 6.0;
+        charge = 100 - factor * 80; // goes from 100 to 20
+        filling = false;
+      }
+
+      setBatteryCharge(Math.max(0, Math.min(100, Math.round(charge))));
+      setIsFilling(filling);
+      animFrameId = requestAnimationFrame(updateBattery);
+    };
+
+    animFrameId = requestAnimationFrame(updateBattery);
+    return () => cancelAnimationFrame(animFrameId);
+  }, []);
 
   const handleBatteryClick = () => {
-    if (!isFilling) {
-      setBatteryCharge(0);
-      setIsFilling(true);
-    }
+    simulationStartTimeRef.current = Date.now();
   };
 
   useEffect(() => {
@@ -442,8 +425,7 @@ export default function Home() {
     <div ref={containerRef} className="w-full min-h-screen bg-[#f8f9fa] flex flex-col">
       {isLoading && <Preloader onComplete={() => setIsLoading(false)} isVideoLoaded={isVideoLoaded} />}
 
-      {/* SECTION 1: Interactive Dashboard (Hero Fold) */}
-      <div className="w-full h-screen min-h-[750px] shrink-0 p-[4px] sm:p-[6px] lg:p-[8px] relative flex items-center justify-center">
+      <div className="w-full h-screen min-h-[750px] shrink-0 relative flex items-center justify-center">
 
         {/* Clip paths for custom shaped panels */}
         <svg width="0" height="0" className="absolute pointer-events-none">
@@ -454,51 +436,21 @@ export default function Home() {
           </defs>
         </svg>
 
-        {/* Outer Dashboard frame */}
-        <div className="inner-dashboard relative opacity-0 w-full h-full bg-[#f8f9fa] rounded-[20px] sm:rounded-[28px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] overflow-hidden">
+        <div className="inner-dashboard relative opacity-0 w-full h-full bg-[#f8f9fa] overflow-hidden">
 
           {/* Full-bleed Hero Background Image */}
           <div className="absolute inset-0 w-full h-full z-0">
-            <video
-              ref={videoRef}
-              autoPlay
-              loop
-              muted
-              playsInline
-              onLoadedData={() => setIsVideoLoaded(true)}
-              onCanPlayThrough={() => setIsVideoLoaded(true)}
+            <Image
+              src="/Generated Image June 06, 2026 - 3_51PM.jpg"
+              alt="Modern solar-powered office building background"
+              fill
+              priority
+              sizes="100vw"
+              onLoad={() => setIsVideoLoaded(true)}
               className="object-cover w-full h-full"
-            >
-              <source src="/Luxury_solar_home_front_view_202605291448.mp4" type="video/mp4" />
-            </video>
+            />
 
-            {/* Realistic Cloud-like White Fade at the top of the Hero Section */}
-            <div className="absolute top-0 left-0 right-0 h-[145px] z-10 pointer-events-none select-none overflow-hidden">
-              {/* Solid white at the absolute top edge to prevent hard cuts */}
-              <div className="absolute top-0 left-0 w-full h-6 bg-white" />
-
-              {/* Layer 1: Deep dense background clouds */}
-              <div className="absolute top-[-20px] left-[-10%] w-[40%] h-[75px] bg-white rounded-[100%] blur-[14px]" />
-              <div className="absolute top-[-5px] left-[20%] w-[50%] h-[95px] bg-white rounded-[100%] blur-[16px]" />
-              <div className="absolute top-[-25px] left-[60%] w-[50%] h-[80px] bg-white rounded-[100%] blur-[15px]" />
-
-              {/* Layer 2: Defined fluffy mid-ground clouds */}
-              <div className="absolute top-[5px] left-[-5%] w-[25%] h-[55px] bg-white rounded-[100%] blur-[10px]" />
-              <div className="absolute top-[20px] left-[12%] w-[20%] h-[45px] bg-white rounded-[100%] blur-[6px]" />
-              <div className="absolute top-[10px] left-[28%] w-[28%] h-[68px] bg-white rounded-[100%] blur-[10px]" />
-              <div className="absolute top-[25px] left-[48%] w-[18%] h-[40px] bg-white rounded-[100%] blur-[6px]" />
-              <div className="absolute top-[15px] left-[60%] w-[26%] h-[60px] bg-white rounded-[100%] blur-[10px]" />
-              <div className="absolute top-[22px] left-[80%] w-[22%] h-[52px] bg-white rounded-[100%] blur-[8px]" />
-              <div className="absolute top-[5px] left-[90%] w-[20%] h-[68px] bg-white rounded-[100%] blur-[10px]" />
-
-              {/* Layer 3: Soft transparent wisps extending lower */}
-              <div className="absolute top-[45px] left-[5%] w-[30%] h-[40px] bg-white/60 rounded-[100%] blur-[14px]" />
-              <div className="absolute top-[55px] left-[35%] w-[25%] h-[35px] bg-white/50 rounded-[100%] blur-[12px]" />
-              <div className="absolute top-[50px] left-[65%] w-[35%] h-[45px] bg-white/55 rounded-[100%] blur-[15px]" />
-
-              {/* Global soft gradient blend for cohesion */}
-              <div className="absolute top-0 left-0 w-full h-[110px] bg-gradient-to-b from-white via-white/50 to-transparent mix-blend-normal" />
-            </div>
+            {/* Sky Background is fully visible at the top (No Overlay) */}
 
             {/* White Cutout SVG Overlay at bottom-left with a gorgeous, sharp, perfectly parallel bezel gap */}
             <div className="absolute bottom-[-2px] left-[-2px] w-[calc(100%+4px)] h-[15%] sm:h-[12.5%] z-10 text-[#f8f9fa] pointer-events-none">
@@ -509,9 +461,9 @@ export default function Home() {
                 <path d="M 0 100 L 0 0 L 510 0 Q 520 0, 524 10 L 556 90 Q 560 100, 570 100 L 0 100 Z" fill="#ffffff" />
 
                 {/* Right container glass background fill matching the exact shape */}
-                <path d="M 1000 100 L 1000 0 L 525 0 Q 535 0, 539 10 L 571 90 Q 575 100, 585 100 Z" fill="rgba(34,197,94,0.12)" />
+                <path d="M 1000 100 L 1000 0 L 525 0 Q 535 0, 539 10 L 571 90 Q 575 100, 585 100 Z" fill="rgba(0,172,78,0.12)" />
                 {/* Right container top/left stroke matching the exact slope and fillets */}
-                <path d="M 1000 0 L 525 0 Q 535 0, 539 10 L 571 90 Q 575 100, 585 100" fill="none" stroke="rgba(34,197,94,0.4)" strokeWidth="1.5" />
+                <path d="M 1000 0 L 525 0 Q 535 0, 539 10 L 571 90 Q 575 100, 585 100" fill="none" stroke="rgba(0,172,78,0.4)" strokeWidth="1.5" />
               </svg>
             </div>
 
@@ -592,7 +544,7 @@ export default function Home() {
                               ? "from-red-500 to-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]"
                               : batteryCharge < 50
                                 ? "from-amber-500 to-yellow-400 shadow-[0_0_12px_rgba(245,158,11,0.5)]"
-                                : "from-green-500 to-emerald-400 shadow-[0_0_12px_rgba(34,197,94,0.5)]"
+                                : "from-green-500 to-emerald-400 shadow-[0_0_12px_rgba(0,172,78,0.5)]"
                               }`}
                             style={{ width: `${batteryCharge}%` }}
                           />
@@ -618,7 +570,7 @@ export default function Home() {
                             <span className="text-[10px] sm:text-xs xl:text-sm font-extrabold text-white/80 ml-0.5">%</span>
                           </div>
                           <span className="text-[8px] sm:text-[9px] xl:text-[10px] text-stone-300 font-mono tracking-wide mt-1 uppercase">
-                            {isFilling ? "+24.5 kW" : batteryCharge >= 100 ? "0.0 kW" : "+2.8 kW"}
+                            {isFilling ? "+24.5 kW" : "-8.5 kW"}
                           </span>
                         </div>
                       </div>
@@ -684,249 +636,231 @@ export default function Home() {
 
           </div>
 
-          {/* Foreground Content Wrapper */}
-          <div className="relative z-20 w-full h-full p-4 sm:p-5 lg:p-7 flex flex-col justify-between">
+          <div className="relative z-20 w-full h-full pt-2 sm:pt-3 lg:pt-4 pb-4 sm:pb-5 lg:pb-7 px-4 sm:px-5 lg:px-7 flex flex-col justify-between">
 
-            {/* Navigation Header (High-end, split layout with centered logo) */}
-            <header className="relative z-[100] transform-gpu flex-none flex items-center justify-between pb-4 pt-0 -mt-2 lg:-mt-3 border-b border-white/10 w-full px-4 lg:px-8">
+            {/* Navigation Header (Adapted to Solshine style) */}
+            <header className="relative z-[100] transform-gpu flex-none flex items-center justify-between pt-0 pb-2 w-full px-0">
 
-              {/* Mobile spacer to balance hamburger and keep logo centered */}
-              <div className="flex lg:hidden flex-1" />
-
-              {/* Left Section: Navigation Links */}
-              <nav className="hidden lg:flex items-center gap-4 lg:gap-6 xl:gap-10 2xl:gap-12 flex-1 justify-end pr-4 lg:pr-6 xl:pr-10 whitespace-nowrap">
-                {/* Home */}
-                <div className="nav-item-anim opacity-0 relative py-2 cursor-pointer group">
-                  <button
-                    onClick={() => setActiveTab("Home")}
-                    className={`text-sm lg:text-[15px] xl:text-base 2xl:text-[17px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "Home" ? "text-stone-900 font-extrabold" : "text-stone-700 hover:text-primary-green"
-                      }`}
-                  >
-                    Home
-                  </button>
-                  <div className={`absolute bottom-[0px] left-0 h-[3px] bg-primary-green transition-all duration-300 ${activeTab === "Home" ? "w-full opacity-100" : "w-0 opacity-0 group-hover:w-full group-hover:opacity-50"}`} />
-                </div>
-
-                {/* About Us */}
-                <div className="nav-item-anim opacity-0 relative py-2 cursor-pointer group">
-                  <button
-                    onClick={() => setActiveTab("About Us")}
-                    className={`text-sm lg:text-[15px] xl:text-base 2xl:text-[17px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "About Us" ? "text-stone-900 font-extrabold" : "text-stone-700 hover:text-primary-green"
-                      }`}
-                  >
-                    About Us
-                  </button>
-                  <div className={`absolute bottom-[0px] left-0 h-[3px] bg-primary-green transition-all duration-300 ${activeTab === "About Us" ? "w-full opacity-100" : "w-0 opacity-0 group-hover:w-full group-hover:opacity-50"}`} />
-                </div>
-
-                {/* Solutions Dropdown */}
-                <div
-                  className="nav-item-anim opacity-0 relative py-4 -my-2"
-                  onMouseEnter={() => setActiveDropdown("Solutions")}
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
-                  <button className={`flex items-center gap-1.5 text-sm lg:text-[15px] xl:text-base 2xl:text-[17px] font-bold transition-colors cursor-pointer ${["Residential Solar", "Commercial & Industrial", "Utility-Scale Systems", "Energy Storage"].includes(activeTab) ? "text-stone-900 font-extrabold" : "text-stone-700 hover:text-primary-green"
-                    }`}>
-                    Solutions
-                    <svg className={`w-4 h-4 transition-transform duration-200 ${activeDropdown === "Solutions" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {activeDropdown === "Solutions" && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 z-[100] w-[800px] xl:w-[850px] cursor-default pointer-events-auto whitespace-normal">
-                      <div className="bg-white/95 backdrop-blur-3xl border border-white/60 rounded-[28px] p-2.5 flex shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.03)]">
-
-                        {/* Left: Featured Banner */}
-                        <div className="w-[280px] relative overflow-hidden rounded-[20px] bg-stone-900 p-6 flex flex-col justify-between group/feature cursor-pointer border border-stone-800 shadow-inner">
-                          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary-green/20 via-transparent to-transparent opacity-50 group-hover/feature:opacity-100 transition-opacity duration-700"></div>
-                          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-primary-green/30 rounded-full blur-[60px] group-hover/feature:bg-primary-green/40 group-hover/feature:scale-110 transition-all duration-700"></div>
-
-                          <div className="relative z-10">
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[9px] font-bold tracking-wider uppercase text-white/90 backdrop-blur-md mb-6 shadow-sm">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
-                              Ecosystem
-                            </div>
-                            <h3 className="font-display text-2xl font-extrabold text-white mb-2 leading-tight drop-shadow-sm">
-                              Total Energy <br /> Independence
-                            </h3>
-                            <p className="text-stone-400 text-xs font-medium leading-relaxed pr-2">
-                              Explore how our interconnected solar arrays, battery storage, and smart apps work seamlessly together.
-                            </p>
-                          </div>
-
-                          <div className="relative z-10 flex items-center gap-3 mt-8">
-                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover/feature:bg-primary-green group-hover/feature:text-white transition-colors duration-300 border border-white/10">
-                              <ArrowRight className="w-3.5 h-3.5 text-white" />
-                            </div>
-                            <span className="text-xs font-bold text-white group-hover/feature:text-primary-green transition-colors duration-300">
-                              View Ecosystem
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Right: Grid of Solutions */}
-                        <div className="flex-1 grid grid-cols-2 gap-1.5 pl-2.5">
-                          {[
-                            {
-                              name: "Residential Solar",
-                              desc: "Sleek rooftop solar & battery integration for modern smart homes.",
-                              icon: (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                                </svg>
-                              )
-                            },
-                            {
-                              name: "Commercial & Industrial",
-                              desc: "High-efficiency commercial microgrids & industrial solar arrays.",
-                              icon: (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                              )
-                            },
-                            {
-                              name: "Utility-Scale Systems",
-                              desc: "Gigawatt grid-tied solar fields & deep transmission infrastructure.",
-                              icon: (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                              )
-                            },
-                            {
-                              name: "Energy Storage",
-                              desc: "Intelligent battery backup stations & power grid optimization.",
-                              icon: (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2z" />
-                                </svg>
-                              )
-                            }
-                          ].map((item) => (
-                            <button
-                              key={item.name}
-                              onClick={() => {
-                                setActiveTab(item.name);
-                                setActiveDropdown(null);
-                              }}
-                              className={`group/card relative p-4 rounded-[20px] transition-all duration-500 overflow-hidden cursor-pointer flex flex-col justify-center text-left ${activeTab === item.name
-                                ? "bg-primary-green/5"
-                                : "hover:bg-stone-50/80"
-                                }`}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-br from-primary-green/[0.03] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500"></div>
-
-                              <div className="relative z-10 flex gap-4 items-start">
-                                <div className={`mt-0.5 shrink-0 flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-500 shadow-sm border ${activeTab === item.name
-                                  ? "bg-primary-green text-white border-primary-green/20 shadow-primary-green/20"
-                                  : "bg-white text-stone-500 border-stone-200/60 group-hover/card:text-primary-green group-hover/card:border-primary-green/20 group-hover/card:shadow-md group-hover/card:-translate-y-0.5"
-                                  }`}>
-                                  {item.icon}
-                                </div>
-
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <h4 className={`font-display text-[15px] font-extrabold tracking-wide transition-colors duration-300 ${activeTab === item.name ? "text-primary-green" : "text-stone-900 group-hover/card:text-primary-green"
-                                      }`}>
-                                      {item.name}
-                                    </h4>
-                                    <ArrowUpRight className={`w-3.5 h-3.5 transition-all duration-500 ${activeTab === item.name
-                                      ? "text-primary-green opacity-100 translate-x-0 translate-y-0"
-                                      : "text-stone-300 opacity-0 -translate-x-2 translate-y-2 group-hover/card:opacity-100 group-hover/card:translate-x-0 group-hover/card:translate-y-0 group-hover/card:text-primary-green"
-                                      }`} />
-                                  </div>
-                                  <p className="text-[11px] text-stone-500 font-medium leading-relaxed pr-2">
-                                    {item.desc}
-                                  </p>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </nav>
-
-              {/* Center Section: Logo */}
-              <div className="nav-item-anim opacity-0 relative z-50 transform-gpu flex items-center justify-center shrink-0">
+              {/* Left Section: Logo */}
+              <div className="nav-item-anim opacity-0 relative z-50 transform-gpu flex items-center justify-start shrink-0">
                 <Image
                   src="/logo.png"
                   alt="GES Logo"
-                  width={190}
-                  height={55}
+                  width={160}
+                  height={44}
                   priority
-                  className="h-12 xl:h-14 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-500 cursor-pointer"
+                  className="h-[42px] w-auto object-contain hover:scale-105 transition-transform duration-500 cursor-pointer"
                   onClick={() => setActiveTab("Home")}
                 />
               </div>
 
-              {/* Right Section: Navigation Links & Contact Button */}
-              <nav className="hidden lg:flex items-center gap-4 lg:gap-6 xl:gap-10 2xl:gap-12 flex-1 justify-start pl-4 lg:pl-6 xl:pl-10 whitespace-nowrap">
-                {/* Blogs */}
-                <div className="nav-item-anim opacity-0 relative py-2 cursor-pointer group">
-                  <Link
-                    href="/blog"
-                    className={`text-sm lg:text-[15px] xl:text-base 2xl:text-[17px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "Blogs" ? "text-stone-900 font-extrabold" : "text-stone-700 hover:text-primary-green"
-                      }`}
-                  >
-                    Blogs
-                  </Link>
-                  <div className={`absolute bottom-[0px] left-0 h-[3px] bg-primary-green transition-all duration-300 ${activeTab === "Blogs" ? "w-full opacity-100" : "w-0 opacity-0 group-hover:w-full group-hover:opacity-50"}`} />
-                </div>
-
-                {/* Projects */}
-                <div className="nav-item-anim opacity-0 relative py-2 cursor-pointer group">
-                  <button
-                    onClick={() => setActiveTab("Projects")}
-                    className={`text-sm lg:text-[15px] xl:text-base 2xl:text-[17px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "Projects" ? "text-stone-900 font-extrabold" : "text-stone-700 hover:text-primary-green"
-                      }`}
-                  >
-                    Projects
-                  </button>
-                  <div className={`absolute bottom-[0px] left-0 h-[3px] bg-primary-green transition-all duration-300 ${activeTab === "Projects" ? "w-full opacity-100" : "w-0 opacity-0 group-hover:w-full group-hover:opacity-50"}`} />
-                </div>
-
-                {/* Contact Button */}
-                <div className="nav-item-anim opacity-0 items-center justify-start relative z-50 transform-gpu ml-1 lg:ml-2">
-                  <div className="flex items-center gap-4 pl-2">
-                    <button className="flex items-center justify-center w-[38px] h-[38px] bg-gray-50 hover:bg-gray-100 rounded-xl transition-all duration-300 border border-gray-200 text-gray-500 hover:text-primary-green shadow-sm cursor-pointer" title="Search (Cmd+K)">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
-                    </button>
+              {/* Right Section: Action items (Capsule Navigation + Tools + Contact) */}
+              <div className="nav-item-anim opacity-0 flex items-center gap-4 lg:gap-5 justify-end shrink-0 font-medium">
+                
+                {/* Capsule Navigation (visible on desktop) */}
+                <div className="hidden lg:flex items-center justify-center">
+                  <nav className="flex items-center gap-6 xl:gap-8 px-8 py-2.5 bg-stone-950/85 backdrop-blur-md border border-white/10 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
+                    {/* Home */}
                     <button
-                      onClick={() => setActiveTab("Contact")}
-                      className="relative group/btn text-[13px] font-bold tracking-widest uppercase text-white overflow-hidden rounded-xl px-6 py-3 transition-transform hover:-translate-y-0.5 active:translate-y-0 duration-300 bg-gradient-to-b from-green-600 to-green-700 shadow-[0_6px_20px_rgba(21,128,61,0.4),inset_0_2px_4px_rgba(255,255,255,0.4),inset_0_-4px_6px_rgba(0,0,0,0.2)] border border-white/20 backdrop-blur-md cursor-pointer"
+                      onClick={() => setActiveTab("Home")}
+                      className={`text-sm xl:text-[15px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "Home" ? "text-[#00AC4E]" : "text-white/80 hover:text-[#00AC4E]"}`}
                     >
-                      <span className="relative z-10 drop-shadow-sm">Contact</span>
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300 z-0"></div>
-                      <div className="absolute inset-0 rounded-xl shadow-[inset_0_0_10px_rgba(255,255,255,0.3)] z-0"></div>
+                      Home
                     </button>
-                  </div>
-                </div>
-              </nav>
 
-              {/* Mobile hamburger menu (visible strictly below lg) */}
-              <div className="flex flex-1 justify-end lg:hidden">
+                    {/* About Us */}
+                    <button
+                      onClick={() => setActiveTab("About Us")}
+                      className={`text-sm xl:text-[15px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "About Us" ? "text-[#00AC4E]" : "text-white/80 hover:text-[#00AC4E]"}`}
+                    >
+                      About Us
+                    </button>
+
+                    {/* Solutions Dropdown */}
+                    <div
+                      className="relative py-1 cursor-pointer"
+                      onMouseEnter={() => setActiveDropdown("Solutions")}
+                      onMouseLeave={() => setActiveDropdown(null)}
+                    >
+                      <button className={`flex items-center gap-1.5 text-sm xl:text-[15px] font-bold transition-colors cursor-pointer ${["Residential Solar", "Commercial & Industrial", "Utility-Scale Systems", "Energy Storage"].includes(activeTab) ? "text-[#00AC4E]" : "text-white/80 hover:text-[#00AC4E]"}`}>
+                        Solutions
+                        <svg className={`w-4 h-4 transition-transform duration-200 ${activeDropdown === "Solutions" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {activeDropdown === "Solutions" && (
+                        <div className="absolute top-full right-[-140px] xl:right-[-180px] pt-4 z-[100] w-[800px] xl:w-[850px] cursor-default pointer-events-auto whitespace-normal">
+                          <div className="bg-white/95 backdrop-blur-3xl border border-white/60 rounded-[28px] p-2.5 flex shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.03)] text-stone-900">
+
+                            {/* Left: Featured Banner */}
+                            <div className="w-[280px] relative overflow-hidden rounded-[20px] bg-stone-900 p-6 flex flex-col justify-between group/feature cursor-pointer border border-stone-800 shadow-inner">
+                              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary-green/20 via-transparent to-transparent opacity-50 group-hover/feature:opacity-100 transition-opacity duration-700"></div>
+                              <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-primary-green/30 rounded-full blur-[60px] group-hover/feature:bg-primary-green/40 group-hover/feature:scale-110 transition-all duration-700"></div>
+
+                              <div className="relative z-10">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[9px] font-bold tracking-wider uppercase text-white/90 backdrop-blur-md mb-6 shadow-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
+                                  Ecosystem
+                                </div>
+                                <h3 className="font-display text-2xl font-extrabold text-white mb-2 leading-tight drop-shadow-sm">
+                                  Total Energy <br /> Independence
+                                </h3>
+                                <p className="text-stone-400 text-xs font-medium leading-relaxed pr-2">
+                                  Explore how our interconnected solar arrays, battery storage, and smart apps work seamlessly together.
+                                </p>
+                              </div>
+
+                              <div className="relative z-10 flex items-center gap-3 mt-8">
+                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover/feature:bg-primary-green group-hover/feature:text-white transition-colors duration-300 border border-white/10">
+                                  <ArrowRight className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <span className="text-xs font-bold text-white group-hover/feature:text-primary-green transition-colors duration-300">
+                                  View Ecosystem
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Right: Grid of Solutions */}
+                            <div className="flex-1 grid grid-cols-2 gap-1.5 pl-2.5">
+                              {[
+                                {
+                                  name: "Residential Solar",
+                                  desc: "Sleek rooftop solar & battery integration for modern smart homes.",
+                                  icon: (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                    </svg>
+                                  )
+                                },
+                                {
+                                  name: "Commercial & Industrial",
+                                  desc: "High-efficiency commercial microgrids & industrial solar arrays.",
+                                  icon: (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                  )
+                                },
+                                {
+                                  name: "Utility-Scale Systems",
+                                  desc: "Gigawatt grid-tied solar fields & deep transmission infrastructure.",
+                                  icon: (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                  )
+                                },
+                                {
+                                  name: "Energy Storage",
+                                  desc: "Intelligent battery backup stations & power grid optimization.",
+                                  icon: (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2z" />
+                                    </svg>
+                                  )
+                                }
+                              ].map((item) => (
+                                <button
+                                  key={item.name}
+                                  onClick={() => {
+                                    setActiveTab(item.name);
+                                    setActiveDropdown(null);
+                                  }}
+                                  className={`group/card relative p-4 rounded-[20px] transition-all duration-500 overflow-hidden cursor-pointer flex flex-col justify-center text-left ${activeTab === item.name
+                                    ? "bg-primary-green/5"
+                                    : "hover:bg-stone-50/80"
+                                    }`}
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-br from-primary-green/[0.03] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500"></div>
+
+                                  <div className="relative z-10 flex gap-4 items-start">
+                                    <div className={`mt-0.5 shrink-0 flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-500 shadow-sm border ${activeTab === item.name
+                                      ? "bg-primary-green text-white border-primary-green/20 shadow-primary-green/20"
+                                      : "bg-white text-stone-500 border-stone-200/60 group-hover/card:text-primary-green group-hover/card:border-primary-green/20 group-hover/card:shadow-md group-hover/card:-translate-y-0.5"
+                                      }`}>
+                                      {item.icon}
+                                    </div>
+
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <h4 className={`font-display text-[15px] font-extrabold tracking-wide transition-colors duration-300 ${activeTab === item.name ? "text-primary-green" : "text-stone-900 group-hover/card:text-primary-green"
+                                          }`}>
+                                          {item.name}
+                                        </h4>
+                                        <ArrowUpRight className={`w-3.5 h-3.5 transition-all duration-500 ${activeTab === item.name
+                                          ? "text-primary-green opacity-100 translate-x-0 translate-y-0"
+                                          : "text-stone-300 opacity-0 -translate-x-2 translate-y-2 group-hover/card:opacity-100 group-hover/card:translate-x-0 group-hover/card:translate-y-0 group-hover/card:text-primary-green"
+                                          }`} />
+                                      </div>
+                                      <p className="text-[11px] text-stone-500 font-medium leading-relaxed pr-2">
+                                        {item.desc}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Blogs */}
+                    <Link
+                      href="/blog"
+                      className={`text-sm xl:text-[15px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "Blogs" ? "text-[#00AC4E]" : "text-white/80 hover:text-[#00AC4E]"}`}
+                    >
+                      Blogs
+                    </Link>
+
+                    {/* Projects */}
+                    <button
+                      onClick={() => setActiveTab("Projects")}
+                      className={`text-sm xl:text-[15px] font-bold cursor-pointer transition-colors duration-300 ${activeTab === "Projects" ? "text-[#00AC4E]" : "text-white/80 hover:text-[#00AC4E]"}`}
+                    >
+                      Projects
+                    </button>
+                  </nav>
+                </div>
+
+                {/* Search (Desktop & Tablet - styled dark for light sky visibility) */}
+                <button
+                  className="text-stone-850 hover:text-[#00AC4E] transition-colors duration-300 cursor-pointer p-1.5"
+                  title="Search (Cmd+K)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-search"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
+                </button>
+
+                {/* Hamburger menu for mobile/desktop drawer toggling (Solshine Style - styled dark for visibility) */}
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="nav-item-anim opacity-0 bg-stone-900/10 hover:bg-stone-900/20 active:bg-stone-900/30 border border-stone-900/10 w-11 h-11 rounded-full flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all duration-300 z-50 relative"
+                  className="group/hamburger text-stone-850 hover:text-[#00AC4E] flex flex-col gap-1.5 cursor-pointer transition-all duration-300"
                   aria-label="Toggle Menu"
                 >
-                  <div className={`w-4.5 h-0.5 bg-stone-950 rounded-full transition-transform duration-300 ${isMobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
-                  <div className={`w-4.5 h-0.5 bg-stone-950 rounded-full transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-0" : "opacity-100"}`} />
-                  <div className={`w-4.5 h-0.5 bg-stone-950 rounded-full transition-transform duration-300 ${isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+                  <div className={`w-6 h-0.5 bg-current transition-transform duration-300 ${isMobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
+                  <div className={`w-6 h-0.5 bg-current transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-0" : "opacity-100"}`} />
+                  <div className={`w-6 h-0.5 bg-current transition-transform duration-300 ${isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+                </button>
+
+                {/* Lime Contact Button (Solshine Style with brand green #00AC4E) */}
+                <button
+                  onClick={() => setActiveTab("Contact")}
+                  className="group/contact flex items-center gap-2 bg-[#00AC4E] hover:bg-[#00ac4e]/90 hover:scale-[1.02] active:scale-[0.98] rounded-full pl-4.5 pr-1 py-1 transition-all duration-300 shadow-md cursor-pointer text-white"
+                >
+                  <span className="font-semibold text-[13px] tracking-tight">Get in touch</span>
+                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#00AC4E] transition-transform duration-300 group-hover/contact:translate-x-0.5">
+                    <svg className="w-3.5 h-3.5 stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </div>
                 </button>
               </div>
-
             </header>
 
             {/* Left-Aligned Hero Content Section inside a Snug Black Glassmorphic Container */}
             <div className="flex-1 flex flex-col items-start justify-end pb-24 sm:pb-28 lg:pb-36 px-2 sm:px-4 z-30 select-none">
-              
+
               <div className="relative overflow-hidden rounded-[20px] sm:rounded-[24px] py-2 sm:py-3 px-5 sm:px-7 bg-black/45 backdrop-blur-md border border-white/10 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] w-fit max-w-full animate-fade-in">
                 {/* Subtle premium white/silver glowing ambient corner */}
                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
@@ -952,7 +886,7 @@ export default function Home() {
                 <div className="md:col-span-5 grid grid-cols-2 gap-3 sm:gap-5">
 
                   {/* Card 2: Solar Yield */}
-                  <div className="bottom-grid-card opacity-0 bg-primary-green/15 backdrop-blur-2xl border border-primary-green/30 rounded-[24px] shadow-[0_8px_32px_0_rgba(34,197,94,0.15)] p-4 flex flex-col justify-between min-h-[140px] transition-transform hover:-translate-y-1">
+                  <div className="bottom-grid-card opacity-0 bg-primary-green/15 backdrop-blur-2xl border border-primary-green/30 rounded-[24px] shadow-[0_8px_32px_0_rgba(0,172,78,0.15)] p-4 flex flex-col justify-between min-h-[140px] transition-transform hover:-translate-y-1">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-white/90 font-bold font-display text-[11px] sm:text-sm lg:text-[15px] tracking-wide">
                         {hoveredBarIndex !== null ? "Live Generation" : "Daily Yield"}
@@ -1013,7 +947,7 @@ export default function Home() {
                   {/* Card 3: Battery Storage */}
                   <div
                     onClick={handleBatteryClick}
-                    className="bottom-grid-card opacity-0 bg-primary-green/15 backdrop-blur-2xl border border-primary-green/30 rounded-[24px] shadow-[0_8px_32px_0_rgba(34,197,94,0.15)] p-4 flex flex-col justify-between min-h-[140px] transition-transform hover:-translate-y-1 cursor-pointer select-none group/battery"
+                    className="bottom-grid-card opacity-0 bg-primary-green/15 backdrop-blur-2xl border border-primary-green/30 rounded-[24px] shadow-[0_8px_32px_0_rgba(0,172,78,0.15)] p-4 flex flex-col justify-between min-h-[140px] transition-transform hover:-translate-y-1 cursor-pointer select-none group/battery"
                   >
                     {/* Title & Arrow */}
                     <div className="flex justify-between items-start">
@@ -1035,7 +969,7 @@ export default function Home() {
                             ? "from-red-500 to-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]"
                             : batteryCharge < 50
                               ? "from-amber-500 to-yellow-400 shadow-[0_0_12px_rgba(245,158,11,0.5)]"
-                              : "from-green-500 to-emerald-400 shadow-[0_0_12px_rgba(34,197,94,0.5)]"
+                              : "from-green-500 to-emerald-400 shadow-[0_0_12px_rgba(0,172,78,0.5)]"
                             }`}
                           style={{ width: `${batteryCharge}%` }}
                         />
@@ -1066,7 +1000,7 @@ export default function Home() {
                         </div>
 
                         <span className="text-[8px] sm:text-[9px] text-stone-300 font-mono tracking-wide mt-0.5 truncate uppercase">
-                          {isFilling ? "Recharging" : batteryCharge >= 100 ? "Balanced" : "Charging"}
+                          {isFilling ? "Recharging" : "Discharging"}
                         </span>
                       </div>
                     </div>
@@ -1076,14 +1010,12 @@ export default function Home() {
                       <div className="flex items-center gap-1">
                         <span className={`w-1.5 h-1.5 rounded-full ${isFilling
                           ? "bg-amber-400 animate-ping"
-                          : batteryCharge >= 100
-                            ? "bg-green-500"
-                            : "bg-green-400 animate-pulse"
+                          : "bg-emerald-400 animate-pulse"
                           }`} />
-                        <span>{isFilling ? "FAST CHARGE" : batteryCharge >= 100 ? "BALANCED" : "SOLAR INPUT"}</span>
+                        <span>{isFilling ? "FAST CHARGE" : "DISCHARGING"}</span>
                       </div>
                       <span className="font-bold text-white/80">
-                        {isFilling ? "+24.5 kW" : batteryCharge >= 100 ? "0.0 kW" : "+2.8 kW"}
+                        {isFilling ? "+24.5 kW" : "-8.5 kW"}
                       </span>
                     </div>
                   </div>
@@ -1096,7 +1028,7 @@ export default function Home() {
 
           {/* Mobile Fullscreen Glass Drawer Menu */}
           {isMobileMenuOpen && (
-            <div className="absolute inset-0 z-[100] bg-[#0c120c]/95 backdrop-blur-3xl flex flex-col p-6 sm:p-10 justify-between overflow-y-auto rounded-[20px] sm:rounded-[28px]">
+            <div className="absolute inset-0 z-[100] bg-[#0c120c]/95 backdrop-blur-3xl flex flex-col p-6 sm:p-10 justify-between overflow-y-auto">
               {/* Drawer Header */}
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <Image
@@ -1309,10 +1241,10 @@ export default function Home() {
 
             {/* Card 2: Carbon Tracking */}
             <div className="card-2-anim opacity-0 will-change-transform">
-              <div className="h-[380px] sm:h-[420px] rounded-[32px] sm:rounded-[36px] overflow-hidden relative shadow-sm border border-stone-200/20 bg-[#eaf7e3] flex flex-col justify-between p-8 transition-all duration-500 group cursor-pointer hover:shadow-xl hover:-translate-y-1.5">
+              <div className="h-[380px] sm:h-[420px] rounded-[32px] sm:rounded-[36px] overflow-hidden relative shadow-sm border border-stone-200/20 bg-green-50 flex flex-col justify-between p-8 transition-all duration-500 group cursor-pointer hover:shadow-xl hover:-translate-y-1.5">
 
                 {/* Floating Icons (at the top) */}
-                <div className="relative z-20 flex items-center gap-3 text-[#16a34a] pt-1">
+                <div className="relative z-20 flex items-center gap-3 text-[#00ac4e] pt-1">
                   <Sun className="w-6 h-6 stroke-[1.2] icon-float-1 group-hover:scale-110 transition-transform duration-300" />
                   <Globe className="w-6 h-6 stroke-[1.2] icon-float-2 group-hover:scale-110 transition-transform duration-300" />
                 </div>
@@ -1330,10 +1262,10 @@ export default function Home() {
                 {/* Creative High-Tech Engineering Blueprint Grid Background */}
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
                   {/* Subtle Grid Pattern Overlay */}
-                  <div className="absolute inset-0 opacity-[0.07] bg-[linear-gradient(to_right,#16a34a_1px,transparent_1px),linear-gradient(to_bottom,#16a34a_1px,transparent_1px)] bg-[size:24px_24px]" />
+                  <div className="absolute inset-0 opacity-[0.07] bg-[linear-gradient(to_right,#00ac4e_1px,transparent_1px),linear-gradient(to_bottom,#00ac4e_1px,transparent_1px)] bg-[size:24px_24px]" />
 
                   {/* Laser Scan Line Sweep */}
-                  <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#22c55e]/30 to-transparent animate-grid-scan" />
+                  <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00ac4e]/30 to-transparent animate-grid-scan" />
 
                   {/* Light Reflection Sweep */}
                   <div className="absolute top-0 bottom-0 w-[50%] bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-light-beam" />
@@ -1342,14 +1274,14 @@ export default function Home() {
                   <div className="absolute -top-16 -right-16 w-56 h-56 opacity-[0.15] group-hover:opacity-[0.25] transition-opacity duration-500">
                     {/* Outer Ring */}
                     <svg viewBox="0 0 100 100" className="w-full h-full animate-ring-rotate-cw">
-                      <circle cx="50" cy="50" r="45" stroke="#16a34a" strokeWidth="0.8" strokeDasharray="3,3" fill="none" />
-                      <path d="M 50 2 L 50 8 M 50 92 L 50 98 M 2 50 L 8 50 M 92 50 L 98 50" stroke="#16a34a" strokeWidth="1" />
+                      <circle cx="50" cy="50" r="45" stroke="#00ac4e" strokeWidth="0.8" strokeDasharray="3,3" fill="none" />
+                      <path d="M 50 2 L 50 8 M 50 92 L 50 98 M 2 50 L 8 50 M 92 50 L 98 50" stroke="#00ac4e" strokeWidth="1" />
                     </svg>
                     {/* Inner Ring (reversing) */}
                     <div className="absolute inset-4">
                       <svg viewBox="0 0 100 100" className="w-full h-full animate-ring-rotate-ccw">
-                        <circle cx="50" cy="50" r="40" stroke="#22c55e" strokeWidth="0.5" fill="none" />
-                        <polygon points="50,15 53,45 85,50 53,55 50,85 47,55 15,50 47,45" stroke="#16a34a" strokeWidth="0.6" fill="none" />
+                        <circle cx="50" cy="50" r="40" stroke="#00ac4e" strokeWidth="0.5" fill="none" />
+                        <polygon points="50,15 53,45 85,50 53,55 50,85 47,55 15,50 47,45" stroke="#00ac4e" strokeWidth="0.6" fill="none" />
                       </svg>
                     </div>
                   </div>
@@ -1437,18 +1369,22 @@ export default function Home() {
                 val: "500MW+",
                 label: "Clean energy generated.",
                 icon: (
-                  <svg className="w-5.5 h-5.5 text-white stroke-[1.2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+                  <Image
+                    src="/icon_energy_v3.png"
+                    alt="Clean Energy Generated Icon"
+                    width={46}
+                    height={46}
+                    className="w-[46px] h-[46px] object-contain"
+                  />
                 ),
-                iconClass: "icon-float-1",
+                iconClass: "",
                 graphic: (
-                  <div className="flex items-end gap-1.5 h-10 opacity-75 group-hover:opacity-100 transition-opacity duration-500 relative z-10">
-                    <div className="w-1 bg-white/30 h-4 rounded-sm animate-pulse" />
-                    <div className="w-1 bg-white/50 h-7 rounded-sm animate-pulse delay-75" />
-                    <div className="w-1 bg-white h-10 rounded-sm shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-                    <div className="w-1 bg-white/75 h-8 rounded-sm animate-pulse" />
-                    <div className="w-1 bg-white/50 h-5 rounded-sm animate-pulse delay-150" />
+                  <div className="flex items-end gap-1.5 h-10 opacity-85 group-hover:opacity-100 transition-opacity duration-500 relative z-10 w-12 justify-center">
+                    <div className="w-1.5 h-full bg-white/40 rounded-full origin-bottom animate-vis-1" />
+                    <div className="w-1.5 h-full bg-white/60 rounded-full origin-bottom animate-vis-2" />
+                    <div className="w-1.5 h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.9)] origin-bottom animate-vis-3" />
+                    <div className="w-1.5 h-full bg-white/80 rounded-full origin-bottom animate-vis-4" />
+                    <div className="w-1.5 h-full bg-white/50 rounded-full origin-bottom animate-vis-5" />
                   </div>
                 )
               },
@@ -1457,24 +1393,36 @@ export default function Home() {
                 val: "95%",
                 label: "Customers ratings.",
                 icon: (
-                  <svg className="w-5.5 h-5.5 text-white stroke-[1.2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.961 0 1.36 1.243.578 1.82l-3.97 2.887a1 1 0 00-.364 1.118l1.52 4.674c.3.922-.755 1.688-1.538 1.118l-3.971-2.887a1 1 0 00-1.175 0l-3.97 2.887c-.783.57-1.838-.197-1.538-1.118l1.52-4.674a1 1 0 00-.364-1.118l-3.97-2.887c-.783-.576-.38-1.82.578-1.82h4.907a1 1 0 00.95-.69l1.519-4.674z" />
-                  </svg>
+                  <div className="relative w-[50px] h-[50px]">
+                    <Image
+                      src="/icon_ratings_v3.png"
+                      alt="Customer Ratings Icon"
+                      fill
+                      sizes="50px"
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
                 ),
-                iconClass: "icon-float-2",
+                iconClass: "",
+                iconContainerClass: "w-[46px] h-[46px] relative overflow-visible",
                 graphic: (
-                  <div className="relative w-9 h-9 flex items-center justify-center opacity-75 group-hover:opacity-100 transition-opacity duration-500 relative z-10">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <defs>
-                        <linearGradient id={`blueGreenGrad-${repIdx}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#ffffff" />
-                          <stop offset="100%" stopColor="#34d399" />
-                        </linearGradient>
-                      </defs>
-                      <path className="text-white/20" strokeWidth="2.8" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path stroke={`url(#blueGreenGrad-${repIdx})`} strokeWidth="2.8" strokeDasharray="95, 100" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <div className="flex items-center gap-0.5 opacity-85 group-hover:opacity-100 transition-opacity duration-500 relative z-10 h-9">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 animate-star-twinkle-1">
+                      <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" />
                     </svg>
-                    <span className="absolute text-[8px] font-mono font-bold text-white leading-none">95%</span>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 animate-star-twinkle-2">
+                      <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" />
+                    </svg>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 animate-star-twinkle-3">
+                      <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" />
+                    </svg>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 animate-star-twinkle-4">
+                      <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" />
+                    </svg>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 animate-star-twinkle-5">
+                      <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" />
+                    </svg>
                   </div>
                 )
               },
@@ -1483,23 +1431,33 @@ export default function Home() {
                 val: "1,200+",
                 label: "Systems installed till date.",
                 icon: (
-                  <svg className="w-5.5 h-5.5 text-white stroke-[1.2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
+                  <Image
+                    src="/icon_installations_v3.png"
+                    alt="Systems Installed Icon"
+                    width={46}
+                    height={46}
+                    className="w-[46px] h-[46px] object-contain"
+                  />
                 ),
-                iconClass: "icon-float-1",
+                iconClass: "",
                 graphic: (
-                  <div className="relative w-9 h-9 opacity-75 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center relative z-10">
-                    <div className="absolute w-2 h-2 rounded-full bg-white animate-ping" />
-                    <div className="absolute w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-                    <div className="w-8 h-8 rounded-full border border-white/20 animate-spin duration-[6000ms]" style={{ borderStyle: "dashed" }} />
+                  <div className="grid grid-cols-3 gap-0.5 w-9 h-9 p-0.5 relative z-10 opacity-80 group-hover:opacity-100 transition-opacity duration-500">
+                    <div className="w-2 h-2 rounded-sm bg-white/30 animate-grid-cell-1" />
+                    <div className="w-2 h-2 rounded-sm bg-white/40 animate-grid-cell-2" />
+                    <div className="w-2 h-2 rounded-sm bg-white/50 animate-grid-cell-3" />
+                    <div className="w-2 h-2 rounded-sm bg-white/40 animate-grid-cell-4" />
+                    <div className="w-2 h-2 rounded-sm bg-white/60 animate-grid-cell-5" />
+                    <div className="w-2 h-2 rounded-sm bg-white/80 animate-grid-cell-6" />
+                    <div className="w-2 h-2 rounded-sm bg-white/50 animate-grid-cell-7" />
+                    <div className="w-2 h-2 rounded-sm bg-white/80 animate-grid-cell-8" />
+                    <div className="w-2 h-2 rounded-sm bg-white animate-grid-cell-9" />
                   </div>
                 )
               }
             ]).map((card) => (
               <div
                 key={card.id}
-                className="group w-[230px] sm:w-[260px] rounded-2xl overflow-hidden relative p-5 flex flex-col justify-between min-h-[130px] cursor-pointer shadow-[0_6px_20px_rgba(4,40,22,0.3)] transform-gpu shrink-0 will-change-transform"
+                className="group w-[250px] sm:w-[280px] rounded-2xl overflow-hidden relative p-5 flex flex-col justify-between min-h-[155px] cursor-pointer shadow-[0_6px_20px_rgba(4,40,22,0.3)] transform-gpu shrink-0 will-change-transform"
               >
                 {/* Background Image: matching leaf_drops texture exactly like the top cards */}
                 <div className="absolute inset-0 z-0">
@@ -1507,28 +1465,30 @@ export default function Home() {
                     src="/leaf_drops.png"
                     alt="Green leaf background texture"
                     fill
-                    sizes="260px"
+                    sizes="280px"
                     className="object-cover group-hover:scale-105 transition-transform duration-700 opacity-55"
                   />
                   {/* Rich, matches green-tinted overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-[#0b5f3d]/80 via-[#053721]/90 to-[#022212]/95 z-10" />
+                  <div className="absolute inset-0 bg-[#00ac4e]/92 z-10" />
                 </div>
 
                 {/* 3D Glass Highlights exactly like the Contact Button */}
                 <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_12px_rgba(255,255,255,0.25)] z-20 pointer-events-none" />
 
-                <div className="flex justify-between items-center relative z-30">
-                  <div className={`p-2 bg-white/10 border border-white/15 rounded-2xl shrink-0 ${card.iconClass}`}>
+                <div className="flex justify-between items-start relative z-30">
+                  <div className={`shrink-0 flex items-center justify-center -mt-1.5 ${card.iconContainerClass || "w-[46px] h-[46px]"} ${card.iconClass}`}>
                     {card.icon}
                   </div>
-                  {card.graphic}
+                  <div className="mt-1">
+                    {card.graphic}
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-0.5 mt-3 relative z-30">
                   <h3 className="font-display font-extrabold text-[28px] sm:text-[32px] tracking-tight text-white leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)]">
                     {card.val}
                   </h3>
-                  <span className="font-display font-bold text-[10px] sm:text-[11px] uppercase tracking-wider text-emerald-300">
+                  <span className="font-display font-bold text-[10px] sm:text-[11px] uppercase tracking-wider text-emerald-100">
                     {card.label}
                   </span>
                 </div>
@@ -1568,7 +1528,7 @@ export default function Home() {
                 <div className="flex items-center gap-4 relative overflow-hidden rounded-2xl p-4 shadow-[0_6px_20px_rgba(4,40,22,0.15)] w-full min-h-[84px]">
                   {/* Glassy Background */}
                   <div className="absolute inset-0 z-0">
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                    <div className="absolute inset-0 bg-[#00ac4e] z-10" />
                   </div>
                   <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_12px_rgba(255,255,255,0.15)] border border-white/5 z-20 pointer-events-none" />
 
@@ -1581,7 +1541,7 @@ export default function Home() {
 
                   {/* Texts */}
                   <div className="flex flex-col relative z-30">
-                    <span className="text-[10px] font-bold text-emerald-300/90 uppercase tracking-wider leading-none">Standardized Quality</span>
+                    <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider leading-none">Standardized Quality</span>
                     <span className="text-sm font-extrabold text-white mt-1.5 leading-tight">ISO 9001 : 2015</span>
                   </div>
                 </div>
@@ -1590,7 +1550,7 @@ export default function Home() {
                 <div className="flex items-center gap-4 relative overflow-hidden rounded-2xl p-4 shadow-[0_6px_20px_rgba(4,40,22,0.15)] w-full min-h-[84px]">
                   {/* Glassy Background */}
                   <div className="absolute inset-0 z-0">
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                    <div className="absolute inset-0 bg-[#00ac4e] z-10" />
                   </div>
                   <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_12px_rgba(255,255,255,0.15)] border border-white/5 z-20 pointer-events-none" />
 
@@ -1603,7 +1563,7 @@ export default function Home() {
 
                   {/* Texts */}
                   <div className="flex flex-col relative z-30">
-                    <span className="text-[10px] font-bold text-emerald-300/90 uppercase tracking-wider leading-none">Authority Approved</span>
+                    <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider leading-none">Authority Approved</span>
                     <span className="text-sm font-extrabold text-white mt-1.5 leading-tight">SL SEA Certified</span>
                   </div>
                 </div>
@@ -1688,7 +1648,7 @@ export default function Home() {
                           sizes="64px"
                           className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-60"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-b from-[#0b5f3d]/90 to-[#022212]/95 z-10" />
+                        <div className="absolute inset-0 bg-[#00ac4e] z-10" />
                       </div>
 
                       {/* Glass reflections */}
@@ -1724,10 +1684,13 @@ export default function Home() {
       {/* Scroll-Trigger Pinned values Wrapper to isolate from parent flex container */}
       <div className="values-pin-trigger w-full relative block z-30">
         {/* SECTION 4: Centered & Scroll-Triggered Values (High-End Diagonal Slide) */}
-        <section className="w-full min-h-screen lg:h-screen relative flex items-center justify-center bg-white text-stone-900 overflow-hidden py-16 lg:py-0 border-t border-stone-100/60 z-10">
+        <section className="w-full min-h-screen lg:h-screen relative flex items-center justify-center bg-[#fcfcfb] text-stone-900 overflow-hidden py-16 lg:py-0 border-t border-stone-100/60 z-10">
+          {/* Subtle Modern Grid Pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_60%,transparent_100%)] pointer-events-none select-none" />
+
           {/* Deep, Premium Ambient Background Glows */}
-          <div className="absolute top-1/2 left-[15%] -translate-y-1/2 w-[400px] h-[400px] bg-emerald-500/[0.03] rounded-full blur-[140px] pointer-events-none select-none" />
-          <div className="absolute top-1/2 right-[15%] -translate-y-1/2 w-[400px] h-[400px] bg-blue-500/[0.02] rounded-full blur-[140px] pointer-events-none select-none" />
+          <div className="absolute top-1/2 left-[15%] -translate-y-1/2 w-[400px] h-[400px] bg-blue-500/[0.04] rounded-full blur-[140px] pointer-events-none select-none" />
+          <div className="absolute top-1/2 right-[15%] -translate-y-1/2 w-[400px] h-[400px] bg-blue-500/[0.03] rounded-full blur-[140px] pointer-events-none select-none" />
 
           <div className="w-full px-6 sm:px-12 md:px-16 lg:px-24 relative z-10">
             <div className="max-w-7xl mx-auto flex items-center justify-center h-full w-full">
@@ -1739,7 +1702,7 @@ export default function Home() {
                 <div className="col-span-4 h-full flex flex-col justify-between py-8">
 
                   {/* Card 1: Top-Left (Human) */}
-                  <div className="value-card-1 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(16,185,129,0.15)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
+                  <div className="value-card-1 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(8,94,172,0.25)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
                     {/* Background Texture and Tint Gradient Overlay */}
                     <div className="absolute inset-0 z-0 select-none pointer-events-none">
                       <Image
@@ -1749,7 +1712,7 @@ export default function Home() {
                         sizes="(max-width: 1024px) 100vw, 400px"
                         className="object-cover mix-blend-luminosity opacity-85 group-hover:scale-105 transition-transform duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                      <div className="absolute inset-0 bg-[#085eac]/92 z-10" />
                     </div>
 
                     {/* Premium 3D Inner Glass Highlight */}
@@ -1757,18 +1720,18 @@ export default function Home() {
 
                     <div>
                       <h3 className="relative z-30 font-display text-xl xl:text-2xl font-extrabold text-white mt-2 leading-none">Human</h3>
-                      <p className="relative z-30 text-emerald-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
+                      <p className="relative z-30 text-blue-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
                         We put people first in everything we build, driving success through empathy and collaboration.
                       </p>
                     </div>
                     <div className="relative z-30 flex items-center gap-2 mt-4 self-start bg-white/10 border border-white/10 px-3 py-1 rounded-full">
-                      <span className="text-[9px] font-extrabold text-emerald-300 uppercase tracking-widest leading-none">RETENTION RATE:</span>
+                      <span className="text-[9px] font-extrabold text-blue-100 uppercase tracking-widest leading-none">RETENTION RATE:</span>
                       <span className="text-[10px] font-black text-white">99% Engineering Trust</span>
                     </div>
                   </div>
 
                   {/* Card 3: Bottom-Left (Pragmatic) */}
-                  <div className="value-card-3 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(16,185,129,0.15)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
+                  <div className="value-card-3 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(8,94,172,0.25)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
                     {/* Background Texture and Tint Gradient Overlay */}
                     <div className="absolute inset-0 z-0 select-none pointer-events-none">
                       <Image
@@ -1778,7 +1741,7 @@ export default function Home() {
                         sizes="(max-width: 1024px) 100vw, 400px"
                         className="object-cover mix-blend-luminosity opacity-85 group-hover:scale-105 transition-transform duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                      <div className="absolute inset-0 bg-[#085eac]/92 z-10" />
                     </div>
 
                     {/* Premium 3D Inner Glass Highlight */}
@@ -1786,12 +1749,12 @@ export default function Home() {
 
                     <div>
                       <h3 className="relative z-30 font-display text-xl xl:text-2xl font-extrabold text-white mt-2 leading-none">Pragmatic</h3>
-                      <p className="relative z-30 text-emerald-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
+                      <p className="relative z-30 text-blue-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
                         We value real-world results over hypothetical concepts, designing systems for maximum durability.
                       </p>
                     </div>
                     <div className="relative z-30 flex items-center gap-2 mt-4 self-start bg-white/10 border border-white/10 px-3 py-1 rounded-full">
-                      <span className="text-[9px] font-extrabold text-emerald-300 uppercase tracking-widest leading-none">SYSTEM RELIABILITY:</span>
+                      <span className="text-[9px] font-extrabold text-blue-100 uppercase tracking-widest leading-none">SYSTEM RELIABILITY:</span>
                       <span className="text-[10px] font-black text-white">99.98% Operational Up-time</span>
                     </div>
                   </div>
@@ -1801,7 +1764,7 @@ export default function Home() {
                 {/* Center Column: Simplified Main Info Block */}
                 <div className="col-span-4 h-full flex flex-col items-center justify-center text-center px-4">
                   <div className="value-center-content flex flex-col items-center max-w-md transform-gpu">
-                    <span className="text-emerald-600 font-extrabold text-xs sm:text-sm tracking-widest uppercase mb-4 block">
+                    <span className="text-blue-600 font-extrabold text-xs sm:text-sm tracking-widest uppercase mb-4 block">
                       Our Values
                     </span>
                     <h2 className="font-display text-4xl xl:text-5xl font-black tracking-tight text-stone-950 leading-tight mb-6">
@@ -1816,7 +1779,7 @@ export default function Home() {
                       onClick={() => setActiveTab("About")}
                       className="inline-flex items-center gap-4 bg-stone-50 hover:bg-stone-100 rounded-full pl-2 pr-6 py-2 border border-stone-200/60 text-stone-800 hover:text-stone-950 cursor-pointer text-xs xl:text-sm font-bold group shadow-sm transition-all duration-300 active:scale-[0.98]"
                     >
-                      <span className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0 group-hover:scale-105 group-hover:bg-emerald-700 transition-all duration-300">
+                      <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 group-hover:scale-105 group-hover:bg-blue-700 transition-all duration-300">
                         <svg className="w-4 h-4 text-white stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
@@ -1830,7 +1793,7 @@ export default function Home() {
                 <div className="col-span-4 h-full flex flex-col justify-between py-8">
 
                   {/* Card 2: Top-Right (Curious) */}
-                  <div className="value-card-2 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(16,185,129,0.15)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
+                  <div className="value-card-2 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(8,94,172,0.25)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
                     {/* Background Texture and Tint Gradient Overlay */}
                     <div className="absolute inset-0 z-0 select-none pointer-events-none">
                       <Image
@@ -1840,7 +1803,7 @@ export default function Home() {
                         sizes="(max-width: 1024px) 100vw, 400px"
                         className="object-cover mix-blend-luminosity opacity-85 group-hover:scale-105 transition-transform duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                      <div className="absolute inset-0 bg-[#085eac]/92 z-10" />
                     </div>
 
                     {/* Premium 3D Inner Glass Highlight */}
@@ -1848,18 +1811,18 @@ export default function Home() {
 
                     <div>
                       <h3 className="relative z-30 font-display text-xl xl:text-2xl font-extrabold text-white mt-2 leading-none">Curious</h3>
-                      <p className="relative z-30 text-emerald-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
+                      <p className="relative z-30 text-blue-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
                         We constantly question current paradigms to discover smarter, cutting-edge solar solutions.
                       </p>
                     </div>
                     <div className="relative z-30 flex items-center gap-2 mt-4 self-start bg-white/10 border border-white/10 px-3 py-1 rounded-full">
-                      <span className="text-[9px] font-extrabold text-emerald-300 uppercase tracking-widest leading-none">R&D INVESTMENT:</span>
+                      <span className="text-[9px] font-extrabold text-blue-100 uppercase tracking-widest leading-none">R&D INVESTMENT:</span>
                       <span className="text-[10px] font-black text-white">Pioneering Smart Tech</span>
                     </div>
                   </div>
 
                   {/* Card 4: Bottom-Right (Impact-Driven) */}
-                  <div className="value-card-4 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(16,185,129,0.15)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
+                  <div className="value-card-4 overflow-hidden relative border border-white/5 rounded-3xl p-7 flex flex-col justify-between min-h-[180px] xl:min-h-[200px] shadow-[0_15px_45px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-8px_rgba(8,94,172,0.25)] hover:border-white/10 transition-[border-color,box-shadow] duration-350 transform-gpu group">
                     {/* Background Texture and Tint Gradient Overlay */}
                     <div className="absolute inset-0 z-0 select-none pointer-events-none">
                       <Image
@@ -1869,7 +1832,7 @@ export default function Home() {
                         sizes="(max-width: 1024px) 100vw, 400px"
                         className="object-cover mix-blend-luminosity opacity-85 group-hover:scale-105 transition-transform duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                      <div className="absolute inset-0 bg-[#085eac]/92 z-10" />
                     </div>
 
                     {/* Premium 3D Inner Glass Highlight */}
@@ -1877,12 +1840,12 @@ export default function Home() {
 
                     <div>
                       <h3 className="relative z-30 font-display text-xl xl:text-2xl font-extrabold text-white mt-2 leading-none">Impact-Driven</h3>
-                      <p className="relative z-30 text-emerald-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
+                      <p className="relative z-30 text-blue-100/80 font-semibold text-xs xl:text-sm leading-relaxed mt-3">
                         We scale clean power to deliver tangible financial savings and accelerate carbon neutrality.
                       </p>
                     </div>
                     <div className="relative z-30 flex items-center gap-2 mt-4 self-start bg-white/10 border border-white/10 px-3 py-1 rounded-full">
-                      <span className="text-[9px] font-extrabold text-emerald-300 uppercase tracking-widest leading-none">CARBON OFFSET:</span>
+                      <span className="text-[9px] font-extrabold text-blue-100 uppercase tracking-widest leading-none">CARBON OFFSET:</span>
                       <span className="text-[10px] font-black text-white">100K+ Tons CO2 Saved</span>
                     </div>
                   </div>
@@ -1895,7 +1858,7 @@ export default function Home() {
               <div className="lg:hidden flex flex-col gap-12 w-full">
 
                 <div className="text-center max-w-xl mx-auto flex flex-col items-center">
-                  <span className="text-emerald-600 font-extrabold text-xs sm:text-sm tracking-widest uppercase mb-3 block">
+                  <span className="text-blue-600 font-extrabold text-xs sm:text-sm tracking-widest uppercase mb-3 block">
                     Our Values
                   </span>
                   <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-950 leading-tight mb-4">
@@ -1908,7 +1871,7 @@ export default function Home() {
                     onClick={() => setActiveTab("About")}
                     className="inline-flex items-center gap-3 bg-stone-50 hover:bg-stone-100 rounded-full pl-2 pr-5 py-1.5 border border-stone-200/60 text-stone-800 text-xs sm:text-sm font-bold group shadow-sm active:scale-[0.98] transition-all"
                   >
-                    <span className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0 group-hover:bg-emerald-700 transition-all">
+                    <span className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 group-hover:bg-blue-700 transition-all">
                       <svg className="w-3.5 h-3.5 text-white stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
@@ -1954,7 +1917,7 @@ export default function Home() {
                           sizes="(max-width: 1024px) 100vw, 400px"
                           className="object-cover mix-blend-luminosity opacity-85 group-hover:scale-105 transition-transform duration-700"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#0b5f3d]/90 via-[#053721]/95 to-[#022212]/98 z-10" />
+                        <div className="absolute inset-0 bg-[#085eac]/92 z-10" />
                       </div>
 
                       {/* Premium 3D Inner Glass Highlight */}
@@ -1962,10 +1925,10 @@ export default function Home() {
 
                       <div>
                         <h3 className="relative z-30 font-display text-lg sm:text-xl font-extrabold text-white mt-2 leading-none">{item.title}</h3>
-                        <p className="relative z-30 text-emerald-100/80 font-medium text-xs leading-relaxed mt-2.5">{item.desc}</p>
+                        <p className="relative z-30 text-blue-100/80 font-medium text-xs leading-relaxed mt-2.5">{item.desc}</p>
                       </div>
                       <div className="relative z-30 flex items-center gap-1.5 mt-3 self-start bg-white/10 border border-white/10 px-2.5 py-0.5 rounded-full">
-                        <span className="text-[8px] font-extrabold text-emerald-300 uppercase tracking-widest leading-none">{item.badgeLabel}:</span>
+                        <span className="text-[8px] font-extrabold text-blue-100 uppercase tracking-widest leading-none">{item.badgeLabel}:</span>
                         <span className="text-[9px] font-black text-white">{item.badgeVal}</span>
                       </div>
                     </div>
@@ -1993,7 +1956,7 @@ export default function Home() {
             <span className="font-mono text-xs font-black text-emerald-700 tracking-[0.25em] uppercase mb-4 block">
               our approach
             </span>
-            <h2 className="font-display text-4xl sm:text-5xl md:text-[52px] font-black tracking-tight text-emerald-950 leading-tight max-w-3xl">
+            <h2 className="font-display text-4xl sm:text-5xl md:text-[52px] font-black tracking-tight text-stone-900 leading-tight max-w-3xl">
               Our process, refined through experience
             </h2>
           </div>
@@ -2030,17 +1993,17 @@ export default function Home() {
               return (
                 <div
                   key={idx}
-                  className={`approach-card-anim group relative rounded-2xl overflow-hidden cursor-pointer shadow-lg border border-white/5 min-h-[380px] lg:min-h-[440px] flex flex-col justify-between p-6 sm:p-8 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] opacity-0 translate-y-[40px] bg-[#022212] ${isHovered
-                      ? "lg:flex-[3.5] flex-[3] shadow-2xl"
-                      : "lg:flex-[1.2] flex-1"
+                  className={`approach-card-anim group relative rounded-2xl overflow-hidden cursor-pointer shadow-lg border border-white/5 min-h-[380px] lg:min-h-[440px] flex flex-col justify-between p-6 sm:p-8 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] opacity-0 translate-y-[40px] bg-[#00ac4e] ${isHovered
+                    ? "lg:flex-[3.5] flex-[3] shadow-2xl"
+                    : "lg:flex-[1.2] flex-1"
                     }`}
                   onMouseEnter={() => setHoveredApproach(idx)}
                 >
                   {/* Vibrant Green Theme Background for collapsed state */}
                   <div className="absolute inset-0 z-0 select-none pointer-events-none transition-all duration-700">
                     <div className={`absolute inset-0 transition-opacity duration-700 ${isHovered
-                        ? "opacity-0"
-                        : "bg-gradient-to-b from-[#0b5f3d] via-[#053721] to-[#022212] opacity-100"
+                      ? "opacity-0"
+                      : "bg-[#00ac4e] opacity-100"
                       }`} />
                   </div>
 
@@ -2054,11 +2017,11 @@ export default function Home() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover object-center"
                     />
-                    {/* Seamless radial fade mask: transparent top-right, solid dark green everywhere else */}
+                    {/* Seamless radial fade mask: transparent top-right, solid dark neutral everywhere else */}
                     <div
                       className="absolute inset-0 z-10"
                       style={{
-                        background: 'radial-gradient(60% 60% at 85% 25%, rgba(2, 34, 18, 0) 0%, rgba(2, 34, 18, 0.6) 30%, rgba(2, 34, 18, 1) 75%)'
+                        background: 'radial-gradient(60% 60% at 85% 25%, rgba(0, 172, 78, 0) 0%, rgba(0, 172, 78, 0.6) 30%, rgba(0, 172, 78, 1) 75%)'
                       }}
                     />
                   </div>
@@ -2070,7 +2033,7 @@ export default function Home() {
                   <div className="relative z-30 flex flex-col justify-between h-full w-full">
                     {/* Top: Number */}
                     <div>
-                      <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-black text-[#c8f69b] tracking-tight leading-none">
+                      <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-black text-[#00ac4e] tracking-tight leading-none">
                         {card.num}
                       </h1>
                     </div>
@@ -2134,7 +2097,7 @@ export default function Home() {
             {blogPosts.slice(0, 3).map((post) => (
               <article
                 key={post.slug}
-                className="bg-white border border-stone-200/50 rounded-[32px] overflow-hidden shadow-[0_10px_35px_rgba(0,0,0,0.015)] hover:shadow-[0_30px_60px_-15px_rgba(34,197,94,0.08)] transition-all duration-500 group flex flex-col justify-between hover:-translate-y-1.5 relative"
+                className="bg-white border border-stone-200/50 rounded-[32px] overflow-hidden shadow-[0_10px_35px_rgba(0,0,0,0.015)] hover:shadow-[0_30px_60px_-15px_rgba(0,172,78,0.08)] transition-all duration-500 group flex flex-col justify-between hover:-translate-y-1.5 relative"
               >
                 <div className="flex flex-col">
                   {/* Cover Image */}
@@ -2228,7 +2191,7 @@ export default function Home() {
           backgroundSize: '100% auto',
           backgroundPosition: 'center -35%',
           backgroundRepeat: 'no-repeat',
-          backgroundColor: '#012716'
+          backgroundColor: '#00ac4e'
         }}
       >
         <div className="max-w-[1360px] mx-auto">
@@ -2256,7 +2219,7 @@ export default function Home() {
                   placeholder="Email Address"
                   className="bg-transparent pl-3 pr-2 py-2.5 text-sm text-white placeholder-white/40 focus:outline-none w-full font-semibold"
                 />
-                <button className="bg-[#e2ff3a] text-[#012716] hover:bg-[#e2ff3a]/90 transition-all duration-300 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer shrink-0 shadow-sm active:scale-[0.98]">
+                <button className="bg-[#e2ff3a] text-[#0c0a09] hover:bg-[#e2ff3a]/90 transition-all duration-300 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer shrink-0 shadow-sm active:scale-[0.98]">
                   Subscribe
                 </button>
               </div>
@@ -2326,9 +2289,9 @@ export default function Home() {
       </footer>
 
       {/* COPYRIGHT SECTION: Deep Forest Green Bottom Bar with No Separator */}
-      <div className="w-full bg-[#012716] text-white/60 py-8 px-6 sm:px-12 md:px-16 lg:px-24 relative z-10 font-sans">
+      <div className="w-full bg-[#00ac4e] text-white/60 py-8 px-6 sm:px-12 md:px-16 lg:px-24 relative z-10 font-sans">
         <div className="max-w-[1360px] mx-auto grid grid-cols-1 md:grid-cols-3 items-center gap-6 text-center md:text-left">
-          
+
           {/* Left: Copyright */}
           <div className="text-xs font-bold text-white/50 justify-self-center md:justify-self-start">
             © {new Date().getFullYear()} GES (PVT) LTD. All rights reserved.

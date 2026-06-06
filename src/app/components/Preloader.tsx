@@ -8,7 +8,7 @@ interface PreloaderProps {
   isVideoLoaded: boolean;
 }
 
-export default function Preloader({ onComplete }: PreloaderProps) {
+export default function Preloader({ onComplete, isVideoLoaded }: PreloaderProps) {
   const [progress, setProgress] = useState(0);
   const [phaseText, setPhaseText] = useState("INITIALIZING SYSTEM...");
   
@@ -16,11 +16,11 @@ export default function Preloader({ onComplete }: PreloaderProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const gridCellsRef = useRef<SVGSVGElement>(null);
 
-  // High-precision animation frame progress loop: Guarantees exactly 1500ms duration
+  // High-precision animation frame progress loop: Guarantees exactly 1000ms duration
   useEffect(() => {
     let animationFrameId: number;
     const startTime = Date.now();
-    const duration = 1500; // 1.5 seconds to reach 100%
+    const duration = 1000; // 1.0 second to reach 100%
 
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
@@ -75,7 +75,7 @@ export default function Preloader({ onComplete }: PreloaderProps) {
     return () => ctx.revert();
   }, []);
 
-  // Exit timeline when progress completes: Guarantees exactly 1000ms exit flow (200ms hold + 800ms timeline ending at 2.5s total)
+  // Exit timeline when progress completes: Guarantees snappy exit flow (50ms hold + 400ms timeline)
   useEffect(() => {
     if (progress === 100) {
       const exitTimeout = setTimeout(() => {
@@ -86,12 +86,12 @@ export default function Preloader({ onComplete }: PreloaderProps) {
             }
           });
 
-          // High-end lens-zoom exit sequence: card shrinks/fades down, background dissolves
+          // Fast lens-zoom exit sequence: card shrinks/fades down, background dissolves
           exitTl.to(cardRef.current, {
-            scale: 0.95,
+            scale: 0.96,
             opacity: 0,
-            y: 12,
-            duration: 0.6,
+            y: 8,
+            duration: 0.35,
             ease: "power4.inOut",
           });
 
@@ -99,14 +99,14 @@ export default function Preloader({ onComplete }: PreloaderProps) {
             overlayRef.current,
             {
               opacity: 0,
-              scale: 0.98,
-              duration: 0.7,
+              scale: 0.99,
+              duration: 0.4,
               ease: "power4.inOut",
             },
-            "-=0.5"
+            "-=0.3"
           );
         }, overlayRef);
-      }, 200); // 200ms final system-ready showcase
+      }, 50); // 50ms final system-ready showcase
 
       return () => clearTimeout(exitTimeout);
     }
@@ -161,11 +161,11 @@ export default function Preloader({ onComplete }: PreloaderProps) {
             >
               <defs>
                 <linearGradient id="cell-active-grad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#4ade80" />
-                  <stop offset="100%" stopColor="#16a34a" />
+                  <stop offset="0%" stopColor="#00ac4e" />
+                  <stop offset="100%" stopColor="#00ac4e" />
                 </linearGradient>
                 <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
-                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="0%" stopColor="#00ac4e" />
                   <feGaussianBlur stdDeviation="1.5" result="blur" />
                   <feComposite in="SourceGraphic" in2="blur" operator="over" />
                 </filter>
@@ -198,7 +198,7 @@ export default function Preloader({ onComplete }: PreloaderProps) {
                     rx="3"
                     className="transition-all duration-500 ease-out"
                     fill={isActive ? "url(#cell-active-grad)" : "#ffffff"}
-                    stroke={isActive ? "rgba(34,197,94,0.3)" : "#e2e8f0"}
+                    stroke={isActive ? "rgba(0,172,78,0.3)" : "#e2e8f0"}
                     strokeWidth="1"
                     style={{
                       filter: isActive ? "url(#glow)" : "none",
@@ -234,7 +234,7 @@ export default function Preloader({ onComplete }: PreloaderProps) {
               style={{ width: `${progress}%` }}
             >
               {/* Glowing laser node at progress tip */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_#22c55e] animate-ping" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_#00ac4e] animate-ping" />
             </div>
           </div>
         </div>

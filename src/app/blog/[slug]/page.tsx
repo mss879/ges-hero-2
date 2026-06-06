@@ -434,7 +434,7 @@ export default function BlogPostDetail({ params }: PageProps) {
           backgroundSize: '100% auto',
           backgroundPosition: 'center -10%',
           backgroundRepeat: 'no-repeat',
-          backgroundColor: '#012716'
+          backgroundColor: '#00ac4e'
         }}
       >
         <div className="max-w-[1360px] mx-auto">
@@ -461,7 +461,7 @@ export default function BlogPostDetail({ params }: PageProps) {
                   placeholder="Email Address" 
                   className="bg-transparent pl-3 pr-2 py-2.5 text-sm text-white placeholder-white/40 focus:outline-none w-full font-semibold"
                 />
-                <button className="bg-[#e2ff3a] text-[#012716] hover:bg-[#e2ff3a]/90 transition-all duration-300 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer shrink-0 shadow-sm">
+                <button className="bg-[#e2ff3a] text-[#0c0a09] hover:bg-[#e2ff3a]/90 transition-all duration-300 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer shrink-0 shadow-sm">
                   Subscribe
                 </button>
               </div>
@@ -528,7 +528,7 @@ export default function BlogPostDetail({ params }: PageProps) {
       </footer>
 
       {/* Copyright bottom bar */}
-      <div className="w-full bg-[#012716] text-white/60 py-8 px-6 sm:px-12 md:px-16 lg:px-24 relative z-10 font-sans">
+      <div className="w-full bg-[#00ac4e] text-white/60 py-8 px-6 sm:px-12 md:px-16 lg:px-24 relative z-10 font-sans">
         <div className="max-w-[1360px] mx-auto grid grid-cols-1 md:grid-cols-3 items-center gap-6 text-center md:text-left">
           
           {/* Left: Copyright */}
